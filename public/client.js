@@ -1,24 +1,31 @@
 (() => {
+  "use strict";
 
-  'use strict';
-
+  // =========================
+  // HELPER
+  // =========================
 
   const $ = (selector) =>
     document.querySelector(selector);
 
+  // =========================
+  // SOCKET.IO
+  // =========================
 
   const socket = io();
 
+  // =========================
+  // STATE
+  // =========================
 
   const state = {
-
     me: null,
 
     channels: [],
 
     users: [],
 
-    active: 'ch:general',
+    active: "ch:general",
 
     convs: {},
 
@@ -30,797 +37,626 @@
 
     audioChunks: [],
 
-    authMode: 'login'
-
+    authMode: "login",
   };
 
+  // =========================
+  // EMOJIS
+  // =========================
 
   const EMOJIS = [
-    '😀',
-    '😂',
-    '🔥',
-    '🚀',
-    '❤️',
-    '👍',
-    '🎉',
-    '👀',
-    '💡',
-    '✨',
-    '😎',
-    '🙌',
-    '💯',
-    '🎯',
-    '👏'
+    "😀",
+    "😂",
+    "🔥",
+    "🚀",
+    "❤️",
+    "👍",
+    "🎉",
+    "👀",
+    "💡",
+    "✨",
+    "😎",
+    "🙌",
+    "💯",
+    "🎯",
+    "👏",
   ];
 
-
-  /* =========================
-     HELPERS
-  ========================= */
-
+  // =========================
+  // ESCAPE HTML
+  // =========================
 
   const esc = (value) => {
-
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   };
 
+  // =========================
+  // TIME
+  // =========================
 
   const time = (timestamp) => {
-
-    return new Date(timestamp)
-      .toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
+    return new Date(timestamp).toLocaleTimeString(
+      [],
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
   };
 
+  // =========================
+  // DM HELPERS
+  // =========================
 
   const keyIsDm = (key) =>
-    key.startsWith('dm:');
-
+    key.startsWith("dm:");
 
   const peerOf = (key) =>
     key.slice(3);
 
-
-  /* =========================
-     THEME
-  ========================= */
-
+  // =========================
+  // THEME
+  // =========================
 
   function setTheme() {
-
     const next =
-      document.documentElement.dataset.theme === 'dark'
-        ? 'light'
-        : 'dark';
-
+      document.documentElement.dataset.theme ===
+      "dark"
+        ? "light"
+        : "dark";
 
     document.documentElement.dataset.theme =
       next;
 
-
     localStorage.setItem(
-      'convox-theme',
+      "convox-theme",
       next
     );
-
   }
 
+  if ($("#themeBtn")) {
+    $("#themeBtn").onclick = setTheme;
+  }
 
-  $('#themeBtn').onclick =
-    setTheme;
+  if ($("#authThemeBtn")) {
+    $("#authThemeBtn").onclick = setTheme;
+  }
 
-
-  $('#authThemeBtn').onclick =
-    setTheme;
-
-
-  /* =========================
-     AUTH UI
-  ========================= */
-
+  // =========================
+  // AUTH MODE
+  // =========================
 
   function setAuthMode(mode) {
-
     state.authMode = mode;
 
+    const signup = mode === "signup";
 
-    const signup =
-      mode === 'signup';
+    $("#loginTab")?.classList.toggle(
+      "active",
+      !signup
+    );
 
+    $("#signupTab")?.classList.toggle(
+      "active",
+      signup
+    );
 
-    $('#loginTab')
-      .classList
-      .toggle(
-        'active',
-        !signup
-      );
-
-
-    $('#signupTab')
-      .classList
-      .toggle(
-        'active',
+    if ($("#authEyebrow")) {
+      $("#authEyebrow").textContent =
         signup
-      );
+          ? "NEW TO CONVOX"
+          : "WELCOME BACK";
+    }
 
+    if ($("#authTitle")) {
+      $("#authTitle").textContent =
+        signup
+          ? "Create your account"
+          : "Sign in to ConvoX";
+    }
 
-    $('#authEyebrow')
-      .textContent =
-      signup
-        ? 'NEW TO CONVOX'
-        : 'WELCOME BACK';
+    if ($("#authSubtitle")) {
+      $("#authSubtitle").textContent =
+        signup
+          ? "Set up your account and start chatting."
+          : "Continue to your conversations.";
+    }
 
+    if ($("#confirmField")) {
+      $("#confirmField").hidden =
+        !signup;
+    }
 
-    $('#authTitle')
-      .textContent =
-      signup
-        ? 'Create your account'
-        : 'Sign in to ConvoX';
+    if ($("#authPassword")) {
+      $("#authPassword").autocomplete =
+        signup
+          ? "new-password"
+          : "current-password";
+    }
 
+    if ($("#authSubmitText")) {
+      $("#authSubmitText").textContent =
+        signup
+          ? "Create account"
+          : "Sign in";
+    }
 
-    $('#authSubtitle')
-      .textContent =
-      signup
-        ? 'Set up your account and start chatting.'
-        : 'Continue to your conversations.';
-
-
-    $('#confirmField').hidden =
-      !signup;
-
-
-    $('#authPassword')
-      .autocomplete =
-      signup
-        ? 'new-password'
-        : 'current-password';
-
-
-    $('#authSubmitText')
-      .textContent =
-      signup
-        ? 'Create account'
-        : 'Sign in';
-
-
-    $('#authFooter')
-      .innerHTML = signup
-
+    if ($("#authFooter")) {
+      $("#authFooter").innerHTML = signup
         ? `
           Already have an account?
           <button type="button" id="switchAuth">
             Sign in
           </button>
         `
-
         : `
           Don't have an account?
           <button type="button" id="switchAuth">
             Create one
           </button>
         `;
+    }
 
+    if ($("#authError")) {
+      $("#authError").textContent = "";
+    }
 
-    $('#authError')
-      .textContent = '';
+    $("#authName")?.focus();
 
+    const switchAuth =
+      $("#switchAuth");
 
-    $('#authName').focus();
-
-
-    $('#switchAuth').onclick = () => {
-
-      setAuthMode(
-        signup
-          ? 'login'
-          : 'signup'
-      );
-
-    };
-
+    if (switchAuth) {
+      switchAuth.onclick = () => {
+        setAuthMode(
+          signup
+            ? "login"
+            : "signup"
+        );
+      };
+    }
   }
 
-
-  $('#loginTab').onclick = () =>
-    setAuthMode('login');
-
-
-  $('#signupTab').onclick = () =>
-    setAuthMode('signup');
-
-
-  /* =========================
-     PASSWORD VISIBILITY
-  ========================= */
-
-
-  $('#passwordToggle').onclick = () => {
-
-    const input =
-      $('#authPassword');
-
-
-    const visible =
-      input.type === 'text';
-
-
-    input.type =
-      visible
-        ? 'password'
-        : 'text';
-
-
-    $('#passwordToggle')
-      .textContent =
-      visible
-        ? 'Show'
-        : 'Hide';
-
-  };
-
-
-  /* =========================
-     LOGIN / SIGNUP
-  ========================= */
-
-
-  $('#authForm').onsubmit = (event) => {
-
-    event.preventDefault();
-
-
-    const username =
-      $('#authName')
-        .value
-        .trim();
-
-
-    const password =
-      $('#authPassword')
-        .value;
-
-
-    const confirm =
-      $('#authConfirm')
-        .value;
-
-
-    const signup =
-      state.authMode === 'signup';
-
-
-    $('#authError')
-      .textContent = '';
-
-
-    if (
-      !/^[a-zA-Z0-9_]{3,20}$/
-        .test(username)
-    ) {
-
-      $('#authError')
-        .textContent =
-        'Username must be 3–20 characters using letters, numbers or _.';
-
-      return;
-
-    }
-
-
-    if (password.length < 6) {
-
-      $('#authError')
-        .textContent =
-        'Password must contain at least 6 characters.';
-
-      return;
-
-    }
-
-
-    if (
-      signup &&
-      password !== confirm
-    ) {
-
-      $('#authError')
-        .textContent =
-        'Passwords do not match.';
-
-      return;
-
-    }
-
-
-    const eventName =
-      signup
-        ? 'signup'
-        : 'login';
-
-
-    const button =
-      $('#authSubmit');
-
-
-    button.disabled = true;
-
-
-    $('#authSubmitText')
-      .textContent =
-      signup
-        ? 'Creating...'
-        : 'Signing in...';
-
-
-    socket.emit(
-      eventName,
-      {
-        name: username,
-        password
-      },
-
-      (response) => {
-
-        button.disabled = false;
-
-
-        $('#authSubmitText')
-          .textContent =
-          signup
-            ? 'Create account'
-            : 'Sign in';
-
-
-        if (!response?.ok) {
-
-          $('#authError')
-            .textContent =
-            response?.error ||
-            'Something went wrong.';
-
-          return;
-
-        }
-
-
-        initializeApp(response);
-
+  if ($("#loginTab")) {
+    $("#loginTab").onclick = () =>
+      setAuthMode("login");
+  }
+
+  if ($("#signupTab")) {
+    $("#signupTab").onclick = () =>
+      setAuthMode("signup");
+  }
+
+  // =========================
+  // PASSWORD TOGGLE
+  // =========================
+
+  if ($("#passwordToggle")) {
+    $("#passwordToggle").onclick = () => {
+      const input =
+        $("#authPassword");
+
+      const visible =
+        input.type === "text";
+
+      input.type = visible
+        ? "password"
+        : "text";
+
+      $("#passwordToggle").textContent =
+        visible
+          ? "Show"
+          : "Hide";
+    };
+  }
+
+  // =========================
+  // LOGIN / SIGNUP
+  // =========================
+
+  if ($("#authForm")) {
+    $("#authForm").onsubmit = (event) => {
+      event.preventDefault();
+
+      const username =
+        $("#authName").value.trim();
+
+      const password =
+        $("#authPassword").value;
+
+      const confirm =
+        $("#authConfirm")?.value || "";
+
+      const signup =
+        state.authMode === "signup";
+
+      $("#authError").textContent =
+        "";
+
+      if (
+        !/^[a-zA-Z0-9_]{3,20}$/.test(
+          username
+        )
+      ) {
+        $("#authError").textContent =
+          "Username must be 3–20 characters using letters, numbers or _.";
+
+        return;
       }
 
-    );
+      if (password.length < 6) {
+        $("#authError").textContent =
+          "Password must contain at least 6 characters.";
 
-  };
+        return;
+      }
 
+      if (
+        signup &&
+        password !== confirm
+      ) {
+        $("#authError").textContent =
+          "Passwords do not match.";
 
-  /* =========================
-     INITIALIZE APP
-  ========================= */
+        return;
+      }
 
+      const eventName =
+        signup
+          ? "signup"
+          : "login";
+
+      const button =
+        $("#authSubmit");
+
+      button.disabled = true;
+
+      $("#authSubmitText").textContent =
+        signup
+          ? "Creating..."
+          : "Signing in...";
+
+      socket.emit(
+        eventName,
+        {
+          name: username,
+          password,
+        },
+        (response) => {
+          button.disabled = false;
+
+          $("#authSubmitText").textContent =
+            signup
+              ? "Create account"
+              : "Sign in";
+
+          if (!response?.ok) {
+            $("#authError").textContent =
+              response?.error ||
+              "Something went wrong.";
+
+            return;
+          }
+
+          initializeApp(response);
+        }
+      );
+    };
+  }
+
+  // =========================
+  // INITIALIZE APP
+  // =========================
 
   function initializeApp(response) {
-
-    state.me =
-      response.name;
-
+    state.me = response.name;
 
     state.channels =
-      response.channels;
-
+      response.channels || [];
 
     state.users =
       response.users || [];
 
-
     state.convs = {};
 
-
-    response.channels.forEach(
+    state.channels.forEach(
       (channel) => {
-
         state.convs[
           `ch:${channel}`
         ] =
-          response.history[channel] ||
-          [];
-
+          response.history?.[
+            channel
+          ] || [];
       }
     );
 
-
-    $('#authScreen').hidden =
+    $("#authScreen").hidden =
       true;
 
+    $("#app").hidden = false;
 
-    $('#app').hidden =
-      false;
-
-
-    $('#meName')
-      .textContent =
+    $("#meName").textContent =
       state.me;
 
+    $("#meAvatar").textContent =
+      state.me[0].toUpperCase();
 
-    $('#meAvatar')
-      .textContent =
-      state.me[0]
-        .toUpperCase();
+    switchTo(state.active);
 
-
-    switchTo(
-      state.active
-    );
-
-
-    $('#input').focus();
-
+    $("#input")?.focus();
   }
 
-
-  /* =========================
-     LOGOUT
-  ========================= */
-
+  // =========================
+  // LOGOUT
+  // =========================
 
   function logout() {
-
-    socket.emit('logout');
-
+    socket.emit("logout");
 
     state.me = null;
-
     state.convs = {};
+    state.users = [];
 
+    $("#app").hidden = true;
 
-    $('#app').hidden =
-      true;
-
-
-    $('#authScreen').hidden =
+    $("#authScreen").hidden =
       false;
 
+    $("#authName").value = "";
+    $("#authPassword").value = "";
 
-    $('#authName').value = '';
+    if ($("#authConfirm")) {
+      $("#authConfirm").value = "";
+    }
 
-    $('#authPassword').value = '';
-
-    $('#authConfirm').value = '';
-
-
-    setAuthMode('login');
-
+    setAuthMode("login");
   }
 
+  if ($("#logoutBtn")) {
+    $("#logoutBtn").onclick = logout;
+  }
 
-  $('#logoutBtn').onclick =
-    logout;
+  // =========================
+  // BOMB MODE
+  // =========================
 
+  if ($("#bombToggle")) {
+    $("#bombToggle").onclick = () => {
+      state.isBombActive =
+        !state.isBombActive;
 
-  /* =========================
-     BOMB MODE
-  ========================= */
-
-
-  $('#bombToggle').onclick = () => {
-
-    state.isBombActive =
-      !state.isBombActive;
-
-
-    $('#bombToggle')
-      .classList
-      .toggle(
-        'active',
+      $("#bombToggle").classList.toggle(
+        "active",
         state.isBombActive
       );
 
+      $("#bombToggle").title =
+        state.isBombActive
+          ? "Bomb mode ON"
+          : "Bomb mode OFF";
+    };
+  }
 
-    $('#bombToggle').title =
-      state.isBombActive
-        ? 'Bomb mode ON'
-        : 'Bomb mode OFF';
-
-  };
-
-
-  /* =========================
-     REPLY
-  ========================= */
-
+  // =========================
+  // REPLY
+  // =========================
 
   function setReply(message) {
-
     state.replyTarget =
       message;
 
-
-    $('#replyUser')
-      .textContent =
+    $("#replyUser").textContent =
       message.from;
 
+    $("#replyMsg").textContent =
+      message.type === "audio"
+        ? "🎙 Voice message"
+        : message.text ||
+          "Message";
 
-    $('#replyMsg')
-      .textContent =
-      message.type === 'audio'
-        ? '🎙 Voice message'
-        : (
-            message.text ||
-            'Message'
-          );
-
-
-    $('#replyPreview')
-      .hidden =
+    $("#replyPreview").hidden =
       false;
 
-
-    $('#input').focus();
-
+    $("#input").focus();
   }
 
+  if ($("#cancelReply")) {
+    $("#cancelReply").onclick = () => {
+      state.replyTarget = null;
 
-  $('#cancelReply').onclick = () => {
+      $("#replyPreview").hidden =
+        true;
+    };
+  }
 
-    state.replyTarget =
-      null;
+  // =========================
+  // VOICE RECORDING
+  // =========================
 
+  if ($("#recordBtn")) {
+    $("#recordBtn").onclick =
+      async () => {
+        if (
+          state.mediaRecorder &&
+          state.mediaRecorder.state ===
+            "recording"
+        ) {
+          state.mediaRecorder.stop();
 
-    $('#replyPreview')
-      .hidden =
-      true;
-
-  };
-
-
-  /* =========================
-     VOICE RECORDING
-  ========================= */
-
-
-  $('#recordBtn').onclick =
-    async () => {
-
-      if (
-        state.mediaRecorder &&
-        state.mediaRecorder.state ===
-        'recording'
-      ) {
-
-        state.mediaRecorder.stop();
-
-
-        $('#recordBtn')
-          .classList
-          .remove('recording');
-
-
-        return;
-
-      }
-
-
-      try {
-
-        const stream =
-          await navigator
-            .mediaDevices
-            .getUserMedia({
-              audio: true
-            });
-
-
-        state.mediaRecorder =
-          new MediaRecorder(
-            stream
+          $("#recordBtn").classList.remove(
+            "recording"
           );
 
+          return;
+        }
 
-        state.audioChunks = [];
-
-
-        state.mediaRecorder
-          .ondataavailable =
-          (event) => {
-
-            state.audioChunks
-              .push(event.data);
-
-          };
-
-
-        state.mediaRecorder
-          .onstop = () => {
-
-            stream
-              .getTracks()
-              .forEach(
-                track =>
-                  track.stop()
-              );
-
-
-            const blob =
-              new Blob(
-                state.audioChunks,
-                {
-                  type:
-                    'audio/webm'
-                }
-              );
-
-
-            const reader =
-              new FileReader();
-
-
-            reader.onloadend = () => {
-
-              socket.emit(
-                'message',
-                {
-                  to:
-                    state.active,
-
-                  type:
-                    'audio',
-
-                  audioData:
-                    reader.result,
-
-                  replyTo:
-                    state.replyTarget
-                }
-              );
-
-
-              state.replyTarget =
-                null;
-
-
-              $('#replyPreview')
-                .hidden =
-                true;
-
-            };
-
-
-            reader.readAsDataURL(
-              blob
+        try {
+          const stream =
+            await navigator.mediaDevices.getUserMedia(
+              {
+                audio: true,
+              }
             );
 
-          };
+          state.mediaRecorder =
+            new MediaRecorder(
+              stream
+            );
 
+          state.audioChunks = [];
 
-        state.mediaRecorder.start();
+          state.mediaRecorder.ondataavailable =
+            (event) => {
+              state.audioChunks.push(
+                event.data
+              );
+            };
 
+          state.mediaRecorder.onstop =
+            () => {
+              stream
+                .getTracks()
+                .forEach(
+                  (track) =>
+                    track.stop()
+                );
 
-        $('#recordBtn')
-          .classList
-          .add('recording');
+              const blob =
+                new Blob(
+                  state.audioChunks,
+                  {
+                    type: "audio/webm",
+                  }
+                );
 
-      }
+              const reader =
+                new FileReader();
 
-      catch {
+              reader.onloadend =
+                () => {
+                  socket.emit(
+                    "message",
+                    {
+                      to: state.active,
+                      type: "audio",
+                      audioData:
+                        reader.result,
+                      replyTo:
+                        state.replyTarget,
+                    }
+                  );
 
-        alert(
-          'Microphone permission is required.'
-        );
+                  state.replyTarget =
+                    null;
 
-      }
+                  $("#replyPreview").hidden =
+                    true;
+                };
 
-    };
+              reader.readAsDataURL(
+                blob
+              );
+            };
 
+          state.mediaRecorder.start();
 
-  /* =========================
-     MESSAGE RENDERER
-  ========================= */
+          $("#recordBtn").classList.add(
+            "recording"
+          );
+        } catch (error) {
+          console.error(error);
 
+          alert(
+            "Microphone permission is required."
+          );
+        }
+      };
+  }
+
+  // =========================
+  // MESSAGE ELEMENT
+  // =========================
 
   function msgEl(message) {
-
     const own =
-      message.from ===
-      state.me;
-
+      message.from === state.me;
 
     const element =
-      document.createElement(
-        'div'
-      );
-
+      document.createElement("div");
 
     element.className =
       `msg ${
-        own
-          ? 'self'
-          : 'other'
+        own ? "self" : "other"
       }`;
-
 
     element.dataset.id =
       message.id;
 
+    let content = "";
 
-    let content = '';
-
-
+    // REPLY
     if (message.replyTo) {
-
       content += `
-
         <div class="quote-bubble">
-
           <strong>
-            @${esc(message.replyTo.from)}:
+            @${esc(
+              message.replyTo.from
+            )}:
           </strong>
 
           ${esc(
             message.replyTo.text ||
-            '🎙 Voice message'
+              "🎙 Voice message"
           )}
-
         </div>
-
       `;
-
     }
 
-
+    // POLL
     if (
-      message.type === 'poll' &&
+      message.type === "poll" &&
       message.poll
     ) {
-
       const total =
-        message.poll.options
-          .reduce(
-            (sum, option) =>
-              sum +
-              option.votes.length,
-            0
-          );
-
+        message.poll.options.reduce(
+          (sum, option) =>
+            sum +
+            option.votes.length,
+          0
+        );
 
       content += `
-
         <div class="poll-box">
 
           <div class="poll-title">
-
             📊
             ${esc(
               message.poll.question
             )}
-
           </div>
 
           ${message.poll.options
             .map(
-              (option, index) => {
-
+              (
+                option,
+                index
+              ) => {
                 const percentage =
                   total
                     ? Math.round(
-                        (
-                          option
-                            .votes
-                            .length /
-                          total
-                        ) * 100
+                        (option.votes
+                          .length /
+                          total) *
+                          100
                       )
                     : 0;
 
-
                 return `
-
                   <button
                     class="poll-opt"
                     data-poll-idx="${index}"
@@ -828,9 +664,7 @@
 
                     <div
                       class="poll-fill"
-                      style="
-                        width:${percentage}%
-                      "
+                      style="width:${percentage}%"
                     ></div>
 
                     <span>
@@ -845,88 +679,64 @@
                     </span>
 
                   </button>
-
                 `;
-
               }
             )
-            .join('')}
+            .join("")}
 
         </div>
-
       `;
-
     }
 
-
+    // AUDIO
     else if (
-      message.type ===
-      'audio'
+      message.type === "audio"
     ) {
-
       content += `
-
         <div class="audio-msg">
-
           <audio
             controls
             src="${message.audioData}"
           ></audio>
-
         </div>
-
       `;
-
     }
 
-
+    // TEXT
     else {
-
       content += `
-
         <div class="text">
-
           ${esc(message.text)}
-
         </div>
-
       `;
-
     }
-
 
     element.innerHTML = `
-
       <div class="bubble">
 
         <div class="msg-actions">
-
           <button
             data-action="reply"
             title="Reply"
           >
             ↩
           </button>
-
         </div>
-
 
         ${
           !own &&
           !keyIsDm(message.to)
-
             ? `
               <div class="author">
-                ${esc(message.from)}
+                ${esc(
+                  message.from
+                )}
               </div>
             `
-
-            : ''
+            : ""
         }
 
-
         ${content}
-
 
         <div
           style="
@@ -936,312 +746,230 @@
             margin-top:4px;
           "
         >
-
           ${time(message.ts)}
 
           ${
             message.bomb
-              ? ' • 💣 10s'
-              : ''
+              ? " • 💣 10s"
+              : ""
           }
-
         </div>
 
       </div>
-
     `;
 
-
+    // BOMB MESSAGE
     if (message.bomb) {
+      setTimeout(() => {
+        element.style.transition =
+          "opacity .4s, transform .4s";
 
-      setTimeout(
-        () => {
+        element.style.opacity =
+          "0";
 
-          element.style.transition =
-            'opacity .4s, transform .4s';
+        element.style.transform =
+          "scale(.96)";
 
-
-          element.style.opacity =
-            '0';
-
-
-          element.style.transform =
-            'scale(.96)';
-
-
-          setTimeout(
-            () =>
-              element.remove(),
-            400
-          );
-
-        },
-
-        10000
-      );
-
+        setTimeout(
+          () => element.remove(),
+          400
+        );
+      }, 10000);
     }
 
-
     return element;
-
   }
 
-
-  /* =========================
-     RENDER MESSAGES
-  ========================= */
-
+  // =========================
+  // RENDER MESSAGES
+  // =========================
 
   function renderMessages() {
-
     const box =
-      $('#messages');
-
+      $("#messages");
 
     const list =
       state.convs[
         state.active
       ] || [];
 
-
-    box.innerHTML =
-      '';
-
+    box.innerHTML = "";
 
     if (!list.length) {
-
       box.innerHTML = `
-
         <div class="empty-state">
 
           <div class="empty-icon">
-
             ${
               keyIsDm(
                 state.active
               )
-                ? '👋'
-                : '💬'
+                ? "👋"
+                : "💬"
             }
-
           </div>
 
-
           <h3>
-
             ${
               keyIsDm(
                 state.active
               )
-
-                ? 'Say hello!'
-
-                : 'Start the conversation'
-
+                ? "Say hello!"
+                : "Start the conversation"
             }
-
           </h3>
 
-
           <p>
-
             ${
               keyIsDm(
                 state.active
               )
-
                 ? `Send a private message to
                    ${esc(
                      peerOf(
                        state.active
                      )
                    )}.`
-
-                : 'Send a message, create a poll, or share a voice note.'
-
+                : "Send a message, create a poll, or share a voice note."
             }
-
           </p>
 
         </div>
-
       `;
 
       return;
-
     }
 
-
     list.forEach(
-      message =>
+      (message) => {
         box.appendChild(
           msgEl(message)
-        )
+        );
+      }
     );
-
 
     box.scrollTop =
       box.scrollHeight;
-
   }
 
+  // =========================
+  // MESSAGE CLICK
+  // =========================
 
-  /* =========================
-     MESSAGE ACTIONS
-  ========================= */
+  if ($("#messages")) {
+    $("#messages").onclick =
+      (event) => {
+        const card =
+          event.target.closest(
+            ".msg"
+          );
 
+        if (!card) return;
 
-  $('#messages').onclick =
-    (event) => {
-
-      const card =
-        event.target.closest(
-          '.msg'
-        );
-
-
-      if (!card) return;
-
-
-      const id =
-        Number(
+        const id = Number(
           card.dataset.id
         );
 
+        const message =
+          (
+            state.convs[
+              state.active
+            ] || []
+          ).find(
+            (item) =>
+              item.id === id
+          );
 
-      const message =
-        (
-          state.convs[
-            state.active
-          ] || []
-        )
-        .find(
-          item =>
-            item.id === id
-        );
+        if (!message) return;
 
+        const button =
+          event.target.closest(
+            "button"
+          );
 
-      if (!message) return;
+        if (!button) return;
 
-
-      const button =
-        event.target.closest(
-          'button'
-        );
-
-
-      if (!button) return;
-
-
-      if (
-        button.dataset.action ===
-        'reply'
-      ) {
-
-        setReply(message);
-
-      }
-
-
-      else if (
-        button.classList.contains(
-          'poll-opt'
-        )
-      ) {
-
-        socket.emit(
-          'vote-poll',
-          {
-            to:
-              state.active,
-
-            id,
-
-            optionIdx:
-              Number(
-                button.dataset
-                  .pollIdx
-              )
-          }
-        );
-
-      }
-
-    };
-
-
-  /* =========================
-     SWITCH CHAT
-  ========================= */
-
-
-  function switchTo(key) {
-
-    state.active =
-      key;
-
-
-    renderSidebar();
-
-
-    renderHeader();
-
-
-    renderMessages();
-
-
-    $('#input')
-      .placeholder =
-      keyIsDm(key)
-
-        ? `Message @${peerOf(key)}`
-
-        : `Message #${key.slice(3)}`;
-
-
-    $('#app')
-      .classList
-      .remove(
-        'drawer-open'
-      );
-
+        if (
+          button.dataset.action ===
+          "reply"
+        ) {
+          setReply(message);
+        } else if (
+          button.classList.contains(
+            "poll-opt"
+          )
+        ) {
+          socket.emit(
+            "vote-poll",
+            {
+              to: state.active,
+              id,
+              optionIdx:
+                Number(
+                  button.dataset
+                    .pollIdx
+                ),
+            }
+          );
+        }
+      };
   }
 
+  // =========================
+  // SWITCH CHAT
+  // =========================
 
-  /* =========================
-     SIDEBAR
-  ========================= */
+  function switchTo(key) {
+    state.active = key;
 
+    // Create conversation array
+    if (!state.convs[key]) {
+      state.convs[key] = [];
+    }
+
+    renderSidebar();
+    renderHeader();
+    renderMessages();
+
+    $("#input").placeholder =
+      keyIsDm(key)
+        ? `Message @${peerOf(
+            key
+          )}`
+        : `Message #${key.slice(
+            3
+          )}`;
+
+    $("#app").classList.remove(
+      "drawer-open"
+    );
+  }
+
+  // =========================
+  // SIDEBAR
+  // =========================
 
   function renderSidebar(
-    filter = ''
+    filter = ""
   ) {
-
     const query =
       filter.toLowerCase();
 
-
     const channels =
       state.channels.filter(
-        channel =>
+        (channel) =>
           channel
             .toLowerCase()
             .includes(query)
       );
 
-
-    $('#channelCount')
-      .textContent =
+    $("#channelCount").textContent =
       channels.length;
 
-
-    $('#channelList')
-      .innerHTML =
+    $("#channelList").innerHTML =
       channels
         .map(
-          channel => `
-
+          (channel) => `
             <li>
 
               <button
@@ -1250,13 +978,11 @@
                   ${
                     state.active ===
                     `ch:${channel}`
-                      ? 'active'
-                      : ''
+                      ? "active"
+                      : ""
                   }
                 "
-                data-key="
-                  ch:${channel}
-                "
+                data-key="ch:${channel}"
               >
 
                 <span
@@ -1272,34 +998,26 @@
               </button>
 
             </li>
-
           `
         )
-        .join('');
-
+        .join("");
 
     const users =
       state.users.filter(
-        user =>
-          user.name !==
-          state.me &&
+        (user) =>
+          user.name !== state.me &&
           user.name
             .toLowerCase()
             .includes(query)
       );
 
-
-    $('#userCount')
-      .textContent =
+    $("#userCount").textContent =
       users.length;
 
-
-    $('#userList')
-      .innerHTML =
+    $("#userList").innerHTML =
       users
         .map(
-          user => `
-
+          (user) => `
             <li>
 
               <button
@@ -1308,278 +1026,205 @@
                   ${
                     state.active ===
                     `dm:${user.name}`
-                      ? 'active'
-                      : ''
+                      ? "active"
+                      : ""
                   }
                 "
-                data-key="
-                  dm:${user.name}
-                "
+                data-key="dm:${user.name}"
               >
 
                 <span class="avatar">
 
                   ${esc(
-                    user.name[0]
-                      .toUpperCase()
+                    user.name[0].toUpperCase()
                   )}
 
-                  <span
-                    class="dot"
-                  ></span>
+                  <span class="dot"></span>
 
                 </span>
 
-
                 <span class="name">
-
                   ${esc(
                     user.name
                   )}
-
                 </span>
 
               </button>
 
             </li>
-
           `
         )
-        .join('');
-
+        .join("");
   }
 
-
-  /* =========================
-     HEADER
-  ========================= */
-
+  // =========================
+  // HEADER
+  // =========================
 
   function renderHeader() {
-
     const dm =
-      keyIsDm(
-        state.active
-      );
+      keyIsDm(state.active);
 
+    $("#chatSymbol").textContent =
+      dm ? "@" : "#";
 
-    $('#chatSymbol')
-      .textContent =
-      dm ? '@' : '#';
-
-
-    $('#chatTitle')
-      .textContent =
+    $("#chatTitle").textContent =
       dm
         ? `@${peerOf(
             state.active
           )}`
+        : state.active.slice(3);
 
-        : state.active.slice(
-            3
-          );
-
-
-    $('#chatSub')
-      .textContent =
+    $("#chatSub").textContent =
       dm
-        ? 'Private conversation'
-
+        ? "Private conversation"
         : `${state.users.length} people online`;
 
-
-    $('#onlineCount')
-      .textContent =
+    $("#onlineCount").textContent =
       state.users.length;
-
   }
 
-
-  /* =========================
-     SIDEBAR CLICK
-  ========================= */
-
+  // =========================
+  // SIDEBAR CLICK
+  // =========================
 
   document.addEventListener(
-    'click',
+    "click",
     (event) => {
-
       const button =
         event.target.closest(
-          '.conv'
+          ".conv"
         );
 
-
       if (button) {
-
         switchTo(
           button.dataset.key
         );
-
       }
-
     }
   );
 
+  // =========================
+  // SEARCH
+  // =========================
 
-  /* =========================
-     SEARCH
-  ========================= */
+  if ($("#searchInput")) {
+    $("#searchInput").oninput =
+      (event) => {
+        renderSidebar(
+          event.target.value
+        );
+      };
+  }
 
+  if ($("#searchBtn")) {
+    $("#searchBtn").onclick =
+      () => {
+        $("#searchInput").focus();
 
-  $('#searchInput').oninput =
-    (event) => {
+        $("#searchInput").select();
+      };
+  }
 
-      renderSidebar(
-        event.target.value
-      );
-
-    };
-
-
-  $('#searchBtn').onclick =
-    () => {
-
-      $('#searchInput')
-        .focus();
-
-      $('#searchInput')
-        .select();
-
-    };
-
+  // =========================
+  // CTRL + K SEARCH
+  // =========================
 
   document.addEventListener(
-    'keydown',
+    "keydown",
     (event) => {
-
       if (
         (event.ctrlKey ||
           event.metaKey) &&
         event.key.toLowerCase() ===
-        'k'
+          "k"
       ) {
-
         event.preventDefault();
 
-        $('#searchInput')
-          .focus();
-
+        $("#searchInput").focus();
       }
-
     }
   );
 
-
-  /* =========================
-     SEND MESSAGE
-  ========================= */
-
+  // =========================
+  // SEND MESSAGE
+  // =========================
 
   function send() {
-
     const input =
-      $('#input');
-
+      $("#input");
 
     const text =
       input.value.trim();
 
-
     if (!text) return;
 
-
-    /* POLL */
+    // =========================
+    // POLL
+    // Format:
+    // /poll Question | Option 1 | Option 2
+    // =========================
 
     if (
-      text.startsWith(
-        '/poll '
-      )
+      text.startsWith("/poll ")
     ) {
+      const parts = text
+        .slice(6)
+        .split("|")
+        .map((item) =>
+          item.trim()
+        )
+        .filter(Boolean);
 
-      const parts =
-        text
-          .slice(6)
-          .split('|')
-          .map(
-            item =>
-              item.trim()
-          )
-          .filter(Boolean);
-
-
-      if (
-        parts.length >= 3
-      ) {
-
+      if (parts.length >= 3) {
         socket.emit(
-          'message',
+          "message",
           {
+            to: state.active,
 
-            to:
-              state.active,
-
-            type:
-              'poll',
+            type: "poll",
 
             poll: {
-
-              question:
-                parts[0],
+              question: parts[0],
 
               options:
                 parts
                   .slice(1)
                   .map(
-                    option => ({
-                      text:
-                        option,
-
-                      votes:
-                        []
+                    (option) => ({
+                      text: option,
+                      votes: [],
                     })
-                  )
-
+                  ),
             },
 
             replyTo:
-              state.replyTarget
-
+              state.replyTarget,
           }
         );
 
-
-        input.value =
-          '';
-
+        input.value = "";
 
         state.replyTarget =
           null;
 
-
-        $('#replyPreview')
-          .hidden =
+        $("#replyPreview").hidden =
           true;
 
-
         return;
-
       }
-
     }
 
-
-    /* NORMAL MESSAGE */
+    // =========================
+    // NORMAL MESSAGE
+    // =========================
 
     socket.emit(
-      'message',
+      "message",
       {
+        to: state.active,
 
-        to:
-          state.active,
-
-        type:
-          'text',
+        type: "text",
 
         text,
 
@@ -1587,278 +1232,248 @@
           state.isBombActive,
 
         replyTo:
-          state.replyTarget
-
+          state.replyTarget,
       }
     );
 
-
-    input.value =
-      '';
-
+    input.value = "";
 
     state.replyTarget =
       null;
 
-
-    $('#replyPreview')
-      .hidden =
+    $("#replyPreview").hidden =
       true;
 
-
     input.style.height =
-      'auto';
-
+      "auto";
   }
 
+  // =========================
+  // COMPOSER
+  // =========================
 
-  $('#composer').onsubmit =
-    (event) => {
-
-      event.preventDefault();
-
-      send();
-
-    };
-
-
-  /* AUTO RESIZE */
-
-  $('#input').oninput =
-    function () {
-
-      this.style.height =
-        'auto';
-
-
-      this.style.height =
-        Math.min(
-          this.scrollHeight,
-          110
-        ) + 'px';
-
-    };
-
-
-  /* ENTER SEND */
-
-  $('#input').onkeydown =
-    (event) => {
-
-      if (
-        event.key ===
-        'Enter' &&
-        !event.shiftKey
-      ) {
-
+  if ($("#composer")) {
+    $("#composer").onsubmit =
+      (event) => {
         event.preventDefault();
 
         send();
+      };
+  }
 
-      }
+  if ($("#input")) {
+    $("#input").oninput =
+      function () {
+        this.style.height =
+          "auto";
 
-    };
+        this.style.height =
+          Math.min(
+            this.scrollHeight,
+            110
+          ) + "px";
+      };
 
+    $("#input").onkeydown =
+      (event) => {
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey
+        ) {
+          event.preventDefault();
 
-  /* =========================
-     EMOJI
-  ========================= */
+          send();
+        }
+      };
+  }
 
+  // =========================
+  // EMOJI
+  // =========================
 
-  $('#emojiPop')
-    .innerHTML =
-    EMOJIS
-      .map(
-        emoji =>
+  if ($("#emojiPop")) {
+    $("#emojiPop").innerHTML =
+      EMOJIS.map(
+        (emoji) =>
           `<button type="button">${emoji}</button>`
-      )
-      .join('');
+      ).join("");
+  }
 
+  if ($("#emojiBtn")) {
+    $("#emojiBtn").onclick =
+      () => {
+        $("#emojiPop").hidden =
+          !$("#emojiPop").hidden;
+      };
+  }
 
-  $('#emojiBtn').onclick =
-    () => {
+  if ($("#emojiPop")) {
+    $("#emojiPop").onclick =
+      (event) => {
+        if (
+          event.target.tagName ===
+          "BUTTON"
+        ) {
+          $("#input").value +=
+            event.target.textContent;
 
-      $('#emojiPop')
-        .hidden =
-        !$('#emojiPop')
-          .hidden;
+          $("#emojiPop").hidden =
+            true;
 
-    };
+          $("#input").focus();
+        }
+      };
+  }
 
+  // =========================
+  // MOBILE MENU
+  // =========================
 
-  $('#emojiPop').onclick =
-    (event) => {
-
-      if (
-        event.target.tagName ===
-        'BUTTON'
-      ) {
-
-        $('#input').value +=
-          event.target
-            .textContent;
-
-
-        $('#emojiPop')
-          .hidden =
-          true;
-
-
-        $('#input')
-          .focus();
-
-      }
-
-    };
-
-
-  /* =========================
-     MOBILE
-  ========================= */
-
-
-  $('#menuBtn').onclick =
-    () =>
-      $('#app')
-        .classList
-        .add(
-          'drawer-open'
+  if ($("#menuBtn")) {
+    $("#menuBtn").onclick =
+      () =>
+        $("#app").classList.add(
+          "drawer-open"
         );
+  }
 
-
-  $('#scrim').onclick =
-    () =>
-      $('#app')
-        .classList
-        .remove(
-          'drawer-open'
+  if ($("#scrim")) {
+    $("#scrim").onclick =
+      () =>
+        $("#app").classList.remove(
+          "drawer-open"
         );
+  }
 
-
-  /* =========================
-     SOCKET EVENTS
-  ========================= */
-
+  // =========================
+  // RECEIVE MESSAGE
+  // =========================
 
   socket.on(
-    'message',
+    "message",
     (message) => {
+      if (!state.convs[message.to]) {
+        state.convs[message.to] =
+          [];
+      }
 
-      (
-        state.convs[
-          message.to
-        ] ||= []
-      )
-        .push(message);
-
+      state.convs[
+        message.to
+      ].push(message);
 
       if (
         message.to ===
         state.active
       ) {
-
         const empty =
-          $(
-            '#messages .empty-state'
-          );
+          $("#messages .empty-state");
 
-
-        if (empty)
+        if (empty) {
           empty.remove();
-
+        }
 
         const box =
-          $('#messages');
-
+          $("#messages");
 
         box.appendChild(
           msgEl(message)
         );
 
-
         box.scrollTop =
           box.scrollHeight;
-
       }
-
     }
   );
 
+  // =========================
+  // UPDATE POLL
+  // =========================
 
   socket.on(
-    'update-poll',
-    ({
-      id,
-      poll,
-      to
-    }) => {
-
+    "update-poll",
+    ({ id, poll, to }) => {
       const list =
-        state.convs[to] ||
-        [];
-
+        state.convs[to] || [];
 
       const item =
         list.find(
-          message =>
+          (message) =>
             message.id === id
         );
 
-
       if (item) {
-
-        item.poll =
-          poll;
-
+        item.poll = poll;
 
         if (
           to ===
           state.active
         ) {
-
           renderMessages();
-
         }
-
       }
-
     }
   );
 
+  // =========================
+  // USERS UPDATE
+  // =========================
 
   socket.on(
-    'users',
+    "users",
     (users) => {
-
-      state.users =
-        users;
-
+      state.users = users;
 
       if (state.me) {
-
         renderSidebar(
-          $('#searchInput')
-            .value
+          $("#searchInput")?.value ||
+            ""
         );
 
-
         renderHeader();
-
       }
-
     }
   );
 
+  // =========================
+  // AUTH ERROR
+  // =========================
 
   socket.on(
-    'auth-error',
+    "auth-error",
     (message) => {
-
-      $('#authError')
-        .textContent =
-        message;
-
+      if ($("#authError")) {
+        $("#authError").textContent =
+          message;
+      }
     }
   );
 
+  // =========================
+  // SOCKET CONNECT
+  // =========================
+
+  socket.on(
+    "connect",
+    () => {
+      console.log(
+        "Connected to ConvoX server:",
+        socket.id
+      );
+    }
+  );
+
+  socket.on(
+    "disconnect",
+    () => {
+      console.log(
+        "Disconnected from ConvoX server"
+      );
+    }
+  );
+
+  // =========================
+  // INITIAL AUTH MODE
+  // =========================
+
+  setAuthMode("login");
 })();
